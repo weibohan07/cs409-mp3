@@ -1,10 +1,13 @@
 // Self-check your MP3 against the course autograder.
 //
-// 1. Deploy your API (e.g. on Render) and set API_URL below to its base URL.
+// 1. Deploy your API and set API_URL in .env/the environment, or edit the constant below.
+//    Use the public origin without /api; the course grader adds /api itself.
 // 2. Run:  npm run submit    (or: node submit.js)
 //
 // The autograder cannot reach localhost, so API_URL must be your deployed URL.
 // Requires Node 24 (LTS).
+
+require("dotenv").config({ quiet: true });
 
 const API_URL = "https://YOUR-APP-NAME.onrender.com"; // <-- change this to your deployed API's URL
 
@@ -18,15 +21,46 @@ function fail(message) {
     process.exit(1);
 }
 
-async function main() {
-    if (API_URL.includes("YOUR-APP-NAME")) {
-        fail("Please edit API_URL at the top of submit.js to your deployed API URL.");
+function resolveApiUrl() {
+    const configured = (process.env.API_URL || API_URL).trim().replace(/\/+$/, "");
+    if (!configured || configured.includes("YOUR-APP-NAME")) {
+        fail("Set API_URL in .env/the environment, or edit API_URL in submit.js, to your public deployment origin (without /api).");
     }
+    let parsed;
+    try {
+        parsed = new URL(configured);
+    } catch {
+        fail("API_URL must be an absolute http:// or https:// URL.");
+    }
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+        fail("API_URL must use http:// or https://.");
+    }
+    if (parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== "/") {
+        fail("API_URL must be only your deployment origin, with no credentials, path (including /api), query, or fragment.");
+    }
+    const host = parsed.hostname.toLowerCase();
+    const octets = host.split(".").map(Number);
+    const privateV4 = octets.length === 4 && octets.every(Number.isInteger) && (
+        octets[0] === 0 || octets[0] === 10 || octets[0] === 127 ||
+        (octets[0] === 169 && octets[1] === 254) ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168)
+    );
+    const localHost = host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
+        host === "[::1]" || host === "[::]" || /^\[(?:fc|fd|fe[89ab])/i.test(host);
+    if (privateV4 || localHost || (!host.includes(".") && !host.startsWith("["))) {
+        fail("The course grader needs a publicly reachable API_URL; localhost and private/local network addresses cannot be used.");
+    }
+    return parsed.origin;
+}
+
+async function main() {
+    const apiUrl = resolveApiUrl();
     if (AUTOGRADER_URL.includes("REPLACE-WITH")) {
         fail("AUTOGRADER_URL has not been configured. Please contact the course staff.");
     }
 
-    console.log(`Submitting ${API_URL} to the autograder...`);
+    console.log(`Submitting ${apiUrl} to the autograder...`);
     console.log("This can take a few minutes (the autograder runs many requests against your API).\n");
 
     let res;
@@ -34,7 +68,7 @@ async function main() {
         res = await fetch(`${AUTOGRADER_URL.replace(/\/+$/, "")}/grade`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: API_URL }),
+            body: JSON.stringify({ url: apiUrl }),
             signal: AbortSignal.timeout(TIMEOUT_MS),
         });
     } catch (e) {

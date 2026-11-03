@@ -1,6 +1,10 @@
-/*
- * Connect all of your endpoints together here.
- */
-module.exports = function (app, router) {
-    app.use('/api', require('./home.js')(router));
-};
+'use strict';
+
+const express = require('express');
+const router = express.Router();
+
+router.use('/', require('./home'));
+router.use('/users', require('./users'));
+router.use('/tasks', require('./tasks'));
+
+module.exports = router;

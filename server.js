@@ -1,36 +1,59 @@
-// Get the packages we need
-var express = require('express'),
-    router = express.Router(),
-    mongoose = require('mongoose');
+'use strict';
 
-// Read .env file
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
+const mongoose = require('mongoose');
+const app = require('./app');
+const User = require('./models/user');
+const Task = require('./models/task');
 
-// Create our Express application
-var app = express();
+async function start() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri || !/^mongodb(?:\+srv)?:\/\//.test(uri)) {
+    throw new Error('Set MONGODB_URI to a MongoDB connection string before starting the server.');
+  }
+  const port = Number(process.env.PORT || 3000);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error('PORT must be an integer between 0 and 65535.');
+  }
 
-// Use environment defined port or 3000
-var port = process.env.PORT || 3000;
+  // Do not accept requests until the database and unique email index are ready.
+  await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+  await Promise.all([User.init(), Task.init()]);
+  const server = await new Promise((resolve, reject) => {
+    const listener = app.listen(port, '0.0.0.0', () => resolve(listener));
+    listener.once('error', reject);
+  });
+  console.log(`Task management API listening on port ${server.address().port}.`);
 
-// Connect to a MongoDB --> Uncomment this once you have a connection string!!
-//mongoose.connect(process.env.MONGODB_URI).catch(function (err) { console.error('MongoDB connection error:', err.message); });
+  let closing = false;
+  async function shutdown() {
+    if (closing) return;
+    closing = true;
+    console.log('Shutting down the API.');
+    const timeout = setTimeout(() => process.exit(1), 10000);
+    timeout.unref();
+    server.close(async () => {
+      try {
+        await mongoose.disconnect();
+        clearTimeout(timeout);
+        process.exitCode = 0;
+      } catch {
+        process.exitCode = 1;
+      }
+    });
+  }
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
+  return server;
+}
 
-// Allow CORS so that backend and frontend could be put on different servers
-var allowCrossDomain = function (req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept");
-    res.header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS");
-    next();
-};
-app.use(allowCrossDomain);
+if (require.main === module) {
+  start().catch(async () => {
+    // Driver errors can contain connection details. Keep credentials out of logs.
+    console.error('Server startup failed. Check MONGODB_URI, PORT, database access, and indexes.');
+    await mongoose.disconnect().catch(() => {});
+    process.exitCode = 1;
+  });
+}
 
-// Parse URL-encoded and JSON request bodies
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
-// Use routes as a module (see index.js)
-require('./routes')(app, router);
-
-// Start the server
-app.listen(port);
-console.log('Server running on port ' + port);
+module.exports = { start };
