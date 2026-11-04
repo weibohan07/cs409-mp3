@@ -1,10 +1,19 @@
-// Load required packages
-var mongoose = require('mongoose');
+'use strict';
 
-// Define our user schema
-var UserSchema = new mongoose.Schema({
-    name: String
+const mongoose = require('mongoose');
+
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  pendingTasks: { type: [String], default: [] },
+  dateCreated: { type: Date, default: Date.now, immutable: true },
+  // Touch this existing Mongoose version field when a task uses this user.
+  // It makes concurrent assignment, rename, and deletion conflict and retry.
+  __v: { type: Number, select: false }
+}, {
+  strictQuery: false,
+  toJSON: { versionKey: false },
+  toObject: { versionKey: false }
 });
 
-// Export the Mongoose model
-module.exports = mongoose.model('User', UserSchema);
+module.exports = mongoose.model('User', userSchema);
