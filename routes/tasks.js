@@ -29,8 +29,9 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-  const data = await deleteTask(req.params.id);
-  res.status(200).json({ message: 'Task deleted successfully.', data });
+  await deleteTask(req.params.id);
+  // The course autograder expects 204 No Content for successful DELETE.
+  res.status(204).end();
 });
 
 module.exports = router;

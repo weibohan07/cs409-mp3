@@ -85,6 +85,10 @@ async function request(method, path, body) {
     init.body = JSON.stringify(body);
   }
   const response = await fetch(baseUrl + path, init);
+  if (response.status === 204) {
+    assert.equal(await response.text(), '', '204 responses must have no body');
+    return { status: 204 };
+  }
   assert.match(response.headers.get('content-type') || '', /application\/json/);
   const payload = await response.json();
   assert.equal(typeof payload.message, 'string');
@@ -161,7 +165,7 @@ describe('Assignment transactions under overlapping HTTP requests', { concurrenc
       assert.equal(snapshot.assignedUserName, owner.name);
 
       const deleted = await request('DELETE', `/api/users/${owner._id}`);
-      assert.equal(deleted.status, 200, deleted.message);
+      assert.equal(deleted.status, 204, deleted.message);
       assert.equal((await request('GET', `/api/users/${owner._id}`)).status, 404);
       barrier.release();
 

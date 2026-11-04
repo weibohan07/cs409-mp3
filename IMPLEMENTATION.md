@@ -13,7 +13,7 @@
 | `/api/tasks` | GET、POST | 查询任务列表、创建任务 |
 | `/api/tasks/:id` | GET、PUT、DELETE | 查询、完整替换、删除任务 |
 
-业务响应统一为 `{ "message": "说明", "data": ... }`。POST 成功返回 `201` 和创建后的对象；GET、PUT 成功返回 `200`。本实现选择 DELETE 成功返回 `200` 和删除前的对象，以保留 JSON 响应体。CORS 预检 OPTIONS 使用 `204` 且不发送响应体。
+业务响应统一为 `{ "message": "说明", "data": ... }`。POST 成功返回 `201` 和创建后的对象；GET、PUT 成功返回 `200`。根据 2026-11-03 实际课程评分器的反馈，DELETE 成功必须返回 **`204 No Content` 且响应体完全为空**（之前的 `200 + JSON` 导致两个 DELETE 测试失分）。CORS 预检 OPTIONS 同样返回 `204` 且不发送响应体。失败请求仍返回带 `message` 和 `data` 的 JSON。
 
 字段和默认值：
 

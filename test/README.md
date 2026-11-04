@@ -74,9 +74,10 @@ leak the marker. No production test endpoint or fault hook is added.
 
 ## Explicit implementation choices
 
-- DELETE returns HTTP 200 with the deleted resource in `data`. The assignment
-  lists 204 among useful status codes but does not require 204 specifically for
-  DELETE. CORS preflight returns 204 with an empty body.
+- DELETE succeeds with HTTP 204 and **no response body**, per actual course
+  autograder feedback from Nov 3, 2026. The contract tests assert the empty
+  body. Errors (including nonexistent resources) still use JSON responses.
+  CORS preflight also returns 204 with an empty body.
 - `count=true` returns the total matching `where`, before `skip`/`limit`.
 - `limit=0` uses MongoDB's unlimited convention.
 - Explicit unassignment normalizes `assignedUserName` to `"unassigned"` even if a

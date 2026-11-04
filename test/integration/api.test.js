@@ -485,8 +485,7 @@ describe('MP3 HTTP API with a real transactional MongoDB', { concurrency: false 
     const owner = await user();
     for (const props of [{ assignedUser: owner._id }, { assignedUser: owner._id, completed: true }, {}]) {
       const work = await task('Delete me', props);
-      const deleted = (await request('DELETE', `/api/tasks/${work._id}`)).body.data;
-      assert.equal(deleted._id, work._id);
+      await request('DELETE', `/api/tasks/${work._id}`, undefined, 204);
       await request('GET', `/api/tasks/${work._id}`, undefined, 404);
       assert.deepEqual((await get('users', owner._id)).pendingTasks, []);
       await request('DELETE', `/api/tasks/${work._id}`, undefined, 404);
@@ -499,8 +498,7 @@ describe('MP3 HTTP API with a real transactional MongoDB', { concurrency: false 
     const done = await task('Done', { assignedUser: owner._id, completed: true });
     const other = await user('Other');
     const unrelated = await task('Unrelated', { assignedUser: other._id });
-    const deleted = (await request('DELETE', `/api/users/${owner._id}`)).body.data;
-    assert.equal(deleted._id, owner._id);
+    await request('DELETE', `/api/users/${owner._id}`, undefined, 204);
     await request('GET', `/api/users/${owner._id}`, undefined, 404);
     for (const work of [pending, done]) {
       const current = await get('tasks', work._id);
